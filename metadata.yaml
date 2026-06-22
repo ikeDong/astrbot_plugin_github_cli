@@ -1,0 +1,7 @@
+name: astrbot_plugin_github_cli
+display_name: GitHub CLI
+version: v1.0.0
+author: astrbot
+desc: 通过命令、自然语言或 LLM 工具受控调用 GitHub CLI。
+repo: ""
+astrbot_version: ">=4.16,<5"

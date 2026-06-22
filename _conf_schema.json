@@ -1,0 +1,144 @@
+{
+  "github": {
+    "description": "GitHub 配置",
+    "type": "object",
+    "items": {
+      "default_owner": {
+        "description": "默认仓库 Owner",
+        "type": "string",
+        "default": "",
+        "hint": "例如 AstrBotDevs。填写后可在 issue/pr/release/workflow 等命令中自动追加 -R owner/repo。"
+      },
+      "default_repo": {
+        "description": "默认仓库名",
+        "type": "string",
+        "default": "",
+        "hint": "例如 AstrBot。需要和 default_owner 同时填写。"
+      },
+      "append_default_repo": {
+        "description": "自动追加默认仓库",
+        "type": "bool",
+        "default": true,
+        "hint": "开启后，对 issue/pr/release/workflow/run/label 等命令自动补充 -R 默认仓库。"
+      },
+      "github_token": {
+        "description": "GitHub Token",
+        "type": "text",
+        "default": "",
+        "hint": "可选。填写后插件会注入 GH_TOKEN 和 GITHUB_TOKEN；也可留空使用主机 gh 登录态。"
+      },
+      "git_author_name": {
+        "description": "提交人名称",
+        "type": "string",
+        "default": "",
+        "hint": "可选。填写后执行 gh 时注入 GIT_AUTHOR_NAME 和 GIT_COMMITTER_NAME。"
+      },
+      "git_author_email": {
+        "description": "提交人邮箱",
+        "type": "string",
+        "default": "",
+        "hint": "可选。填写后执行 gh 时注入 GIT_AUTHOR_EMAIL 和 GIT_COMMITTER_EMAIL。"
+      }
+    }
+  },
+  "features": {
+    "description": "功能入口",
+    "type": "object",
+    "items": {
+      "enable_direct_command": {
+        "description": "启用命令入口",
+        "type": "bool",
+        "default": true,
+        "hint": "支持 /gh、/github、/github-cli。"
+      },
+      "enable_llm_tool": {
+        "description": "启用 LLM 工具入口",
+        "type": "bool",
+        "default": true,
+        "hint": "允许大模型在明确 GitHub 操作意图时调用 github_cli 工具。"
+      }
+    }
+  },
+  "security": {
+    "description": "安全策略",
+    "type": "object",
+    "items": {
+      "require_admin": {
+        "description": "仅 Bot 管理员可用",
+        "type": "bool",
+        "default": true,
+        "hint": "强烈建议开启。GitHub CLI 能执行写入操作，默认仅管理员可用。"
+      },
+      "allowed_sender_ids": {
+        "description": "用户白名单",
+        "type": "list",
+        "default": [],
+        "hint": "留空表示不额外限制；填写后只有这些发送者 ID 可用。"
+      },
+      "allow_mutating_operations": {
+        "description": "允许写入类操作",
+        "type": "bool",
+        "default": false,
+        "hint": "关闭时，仅允许 list/view/status/diff/checks/clone/browse/help 等偏只读子命令。"
+      },
+      "block_dangerous_operations": {
+        "description": "拦截危险操作",
+        "type": "bool",
+        "default": true,
+        "hint": "拦截 repo delete、release delete、workflow disable、auth logout 等高风险操作。"
+      },
+      "blocked_subcommands": {
+        "description": "额外拦截命令",
+        "type": "list",
+        "default": [],
+        "hint": "可写根命令或二级命令，例如 repo delete、secret、workflow disable。"
+      },
+      "allowed_root_commands": {
+        "description": "允许的根命令",
+        "type": "list",
+        "default": [],
+        "hint": "留空表示允许所有 gh 根命令；填写后只允许列表中的根命令，例如 issue、pr、repo。"
+      }
+    }
+  },
+  "runtime": {
+    "description": "运行配置",
+    "type": "object",
+    "items": {
+      "gh_path": {
+        "description": "GitHub CLI 路径",
+        "type": "string",
+        "default": "gh",
+        "hint": "可填写 gh 或绝对路径。"
+      },
+      "command_timeout": {
+        "description": "命令超时秒数",
+        "type": "int",
+        "default": 60,
+        "slider": {
+          "min": 5,
+          "max": 600,
+          "step": 5
+        },
+        "hint": "超过该时间会中止命令。"
+      },
+      "max_output_chars": {
+        "description": "最大输出字符数",
+        "type": "int",
+        "default": 6000,
+        "slider": {
+          "min": 500,
+          "max": 30000,
+          "step": 500
+        },
+        "hint": "超过后自动截断，避免刷屏。"
+      },
+      "dry_run": {
+        "description": "试运行模式",
+        "type": "bool",
+        "default": false,
+        "hint": "开启后只返回将要执行的 gh 命令，不真正调用 gh。"
+      }
+    }
+  }
+}
