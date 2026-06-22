@@ -57,6 +57,35 @@ READ_ONLY_SUBCOMMANDS = {
     "browse",
 }
 
+GH_ROOT_COMMANDS = {
+    "alias",
+    "api",
+    "auth",
+    "browse",
+    "cache",
+    "codespace",
+    "completion",
+    "config",
+    "extension",
+    "gist",
+    "gpg-key",
+    "issue",
+    "label",
+    "org",
+    "pr",
+    "project",
+    "release",
+    "repo",
+    "ruleset",
+    "run",
+    "search",
+    "secret",
+    "ssh-key",
+    "status",
+    "variable",
+    "workflow",
+}
+
 
 @dataclass(frozen=True)
 class GitHubCliResult:
@@ -110,6 +139,13 @@ class GitHubCliCommandBuilder:
                 return shlex.split(command_text) if command_text else ["help"]
         if lowered in {"gh", "/gh", "github", "/github", "github-cli", "/github-cli"}:
             return ["help"]
+
+        try:
+            args = shlex.split(text)
+        except ValueError:
+            return None
+        if args and args[0].lower() in GH_ROOT_COMMANDS:
+            return args
         return None
 
     def _parse_natural(self, text: str) -> list[str] | None:
@@ -117,8 +153,42 @@ class GitHubCliCommandBuilder:
         repo = self._extract_repo(normalized)
         repo_args = ["-R", repo] if repo else []
 
+        issue_number = self._extract_number(normalized, ["issue", "议题"])
+        if issue_number:
+            return ["issue", "view", issue_number, *repo_args]
+
+        pr_number = self._extract_number(normalized, ["pr", "pull request", "拉取请求"])
+        if pr_number:
+            return ["pr", "view", pr_number, *repo_args]
+
+        issue_create_markers = ["创建议题", "新建议题", "创建 issue", "新建 issue"]
+        if self._has_any(normalized, issue_create_markers):
+            title = self._extract_after(normalized, issue_create_markers)
+            return ["issue", "create", *repo_args, "--title", title or "New issue", "--body", ""]
+
+        repo_search_markers = ["搜索仓库", "查找仓库", "搜仓库"]
+        if self._has_any(normalized, repo_search_markers):
+            query = self._extract_after(normalized, repo_search_markers)
+            return ["search", "repos", query] if query else ["search", "repos"]
+
+        issue_search_markers = ["搜索议题", "搜索 issue", "查找议题"]
+        if self._has_any(normalized, issue_search_markers):
+            query = self._extract_after(normalized, issue_search_markers)
+            return ["search", "issues", query] if query else ["issue", "list", *repo_args]
+
+        pr_search_markers = ["搜索pr", "搜索 pr", "搜索拉取请求"]
+        if self._has_any(normalized, pr_search_markers):
+            query = self._extract_after(normalized, pr_search_markers)
+            return ["search", "prs", query] if query else ["pr", "list", *repo_args]
+
+        clone_markers = ["克隆仓库", "clone 仓库", "克隆", "clone"]
+        if self._has_any(normalized, clone_markers):
+            target = self._extract_after(normalized, clone_markers)
+            return ["repo", "clone", target] if target else None
+
         exact_patterns: list[tuple[re.Pattern[str], list[str]]] = [
             (re.compile(r"^(gh|github)(认证|登录)?状态$", re.I), ["auth", "status"]),
+            (re.compile(r"^(查看|列出)?(我的)?(所有)?(仓库|repos?|repository|repositories)$", re.I), ["repo", "list"]),
             (re.compile(r"^(查看|列出)?(仓库|repo)信息$", re.I), ["repo", "view", *repo_args]),
             (re.compile(r"^(查看|列出)?(issue|议题)$", re.I), ["issue", "list", *repo_args]),
             (re.compile(r"^(查看|列出)?(pr|pull request|拉取请求)$", re.I), ["pr", "list", *repo_args]),
@@ -131,33 +201,17 @@ class GitHubCliCommandBuilder:
             if pattern.search(normalized):
                 return command
 
-        issue_number = self._extract_number(normalized, ["issue", "议题"])
-        if issue_number:
-            return ["issue", "view", issue_number, *repo_args]
-
-        pr_number = self._extract_number(normalized, ["pr", "pull request", "拉取请求"])
-        if pr_number:
-            return ["pr", "view", pr_number, *repo_args]
-
-        if self._has_any(normalized, ["创建议题", "新建议题", "创建 issue", "新建 issue"]):
-            title = self._extract_after(normalized, ["创建议题", "新建议题", "创建 issue", "新建 issue"])
-            return ["issue", "create", *repo_args, "--title", title or "New issue", "--body", ""]
-
-        if self._has_any(normalized, ["搜索仓库", "查找仓库", "搜仓库"]):
-            query = self._extract_after(normalized, ["搜索仓库", "查找仓库", "搜仓库"])
-            return ["search", "repos", query] if query else ["search", "repos"]
-
-        if self._has_any(normalized, ["搜索议题", "搜索 issue", "查找议题"]):
-            query = self._extract_after(normalized, ["搜索议题", "搜索 issue", "查找议题"])
-            return ["search", "issues", query] if query else ["issue", "list", *repo_args]
-
-        if self._has_any(normalized, ["搜索pr", "搜索 pr", "搜索拉取请求"]):
-            query = self._extract_after(normalized, ["搜索pr", "搜索 pr", "搜索拉取请求"])
-            return ["search", "prs", query] if query else ["pr", "list", *repo_args]
-
-        if self._has_any(normalized, ["克隆仓库", "clone 仓库"]):
-            target = self._extract_after(normalized, ["克隆仓库", "clone 仓库"])
-            return ["repo", "clone", target] if target else None
+        if repo:
+            if self._has_any(normalized, ["issue", "议题"]):
+                return ["issue", "list", *repo_args]
+            if self._has_any(normalized, ["pr", "pull request", "拉取请求"]):
+                return ["pr", "list", *repo_args]
+            if self._has_any(normalized, ["release", "发布", "版本"]):
+                return ["release", "list", *repo_args]
+            if self._has_any(normalized, ["workflow", "工作流"]):
+                return ["workflow", "list", *repo_args]
+            if self._has_any(normalized, ["label", "标签"]):
+                return ["label", "list", *repo_args]
 
         if self._has_any(normalized.lower(), ["github", "gh "]):
             return ["help"]
@@ -324,6 +378,26 @@ class GitHubCliPlugin(Star):
         yield event.plain_result(self._usage())
 
     def _build_llm_tool(self) -> FunctionTool:
+        async def github_cli_handler(
+            *handler_args: Any,
+            command: str | None = None,
+            natural_language: str | None = None,
+        ) -> str:
+            event = next(
+                (
+                    arg
+                    for arg in handler_args
+                    if hasattr(arg, "get_sender_id") and hasattr(arg, "is_admin")
+                ),
+                None,
+            )
+            text = str(command or natural_language or "").strip()
+            if not text:
+                return "缺少 command 或 natural_language。"
+            args = self.builder.from_text(text) or shlex.split(text)
+            result = await self._execute_for_event(event, args)
+            return self._format_result(result)
+
         return FunctionTool(
             name="github_cli",
             description=(
@@ -344,27 +418,8 @@ class GitHubCliPlugin(Star):
                 },
                 "required": [],
             },
-            handler=GitHubCliPlugin._llm_tool_handler,
+            handler=github_cli_handler,
         )
-
-    async def _llm_tool_handler(
-        self,
-        event: AstrMessageEvent,
-        payload: dict[str, Any] | None = None,
-        **payload_kwargs: Any,
-    ) -> str:
-        merged: dict[str, Any] = {}
-        if payload:
-            if not isinstance(payload, dict):
-                raise ValueError("payload 必须是对象。")
-            merged.update(payload)
-        merged.update(payload_kwargs)
-        text = str(merged.get("command") or merged.get("natural_language") or "").strip()
-        if not text:
-            return "缺少 command 或 natural_language。"
-        args = self.builder.from_text(text) or shlex.split(text)
-        result = await self._execute_for_event(event, args)
-        return self._format_result(result)
 
     async def _execute_for_event(
         self, event: AstrMessageEvent, args: list[str]
