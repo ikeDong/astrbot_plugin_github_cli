@@ -2,6 +2,12 @@
 
 通过 GitHub CLI `gh` 让 AstrBot 执行 GitHub 操作。
 
+> 💡 **使用建议 / Quick Guide**
+> - **轻量安全托管**：当你不想让 Bot 拥有完整的 Agent（系统执行）权限，却又希望它能安全地帮你管理 GitHub 仓库时，可以使用本插件。它提供了严格的指令沙盒与权限策略拦截。
+> - **全权 Agent 场景**：若你的 Bot 已经具备了完整的 Agent 权限，则直接通过终端命令执行 `gh` 会更高效，无需额外安装此插件。
+
+---
+
 ## 功能
 
 - 直通 GitHub CLI 全部子命令：`/gh issue list -R owner/repo`
